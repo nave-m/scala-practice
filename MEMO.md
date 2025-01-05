@@ -35,11 +35,14 @@ SwiftのstructやKotlinのdata class同様
 
 https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Dependencies
 
-
-
 - aggregate
     - https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Aggregation
     - 関連するプロジェクトに対してsbtのタスクを実行する
-- dependsOn
+- classpath (dependsOn)
     - https://www.scala-sbt.org/1.x/docs/Multi-Project.html#Classpath+dependencies
-    - 他のプロジェクトのコードを参照するための指定
+    - クラスパス依存性(他のプロジェクトのコードを参照するための指定)
+        - プロジェクトだけ指定すると暗黙的にsbtのcompileコンフィグレーションの依存性が定義される
+        - `src/main` のコードを他のプロジェクトから使える
+    - `dependsOn({プロジェクト名} % "test->test;compile->compile")`のように明示的にtestコンフィグレーションの依存性を書くと
+      `src/test` のコードを他のプロジェクトから使える
+
