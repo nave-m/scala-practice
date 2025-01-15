@@ -21,8 +21,6 @@ class MainSpec extends ZIOSpec[Server & Client & TestEnvironment] {
       }
     }
   }.provide(
-    TestServer.layer,
-    Client.default,
     ZLayer.succeed(
       UserService(
         query = InMemoryUserQuery(
@@ -38,10 +36,12 @@ class MainSpec extends ZIOSpec[Server & Client & TestEnvironment] {
   override def bootstrap: ZLayer[Any, Any, Server & Client & TestEnvironment] =
     ZLayer.make[Server & Client & TestEnvironment](
       testEnvironment,
-      httpServer,
-      httpClient,
+      MainSpec.httpServer,
+      MainSpec.httpClient,
     )
+}
 
+object MainSpec {
   private lazy val httpServer: ZLayer[Any, Nothing, Server] = {
     val server = for {
       port   <- ZLayer { ZIO.randomWith(_.nextIntBetween(49152, 65535)) }
@@ -53,8 +53,7 @@ class MainSpec extends ZIOSpec[Server & Client & TestEnvironment] {
     server >+> ZLayer.scoped {
       for {
         scope  <- ZIO.scope
-        port   <- ZIO.randomWith(_.nextIntBetween(49152, 65535))
-        fiber  <- Server.serve(UserApi.routes).forkIn(scope)
+        _  <- Server.serve(ServerRoutes.routes).forkIn(scope)
         server <- ZIO.service[Server]
       } yield {
         server

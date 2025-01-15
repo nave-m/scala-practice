@@ -1,35 +1,31 @@
 package example.web
 
 import example.user.UserService
+import zio.IO
 import zio.ZIO
-import zio.http.endpoint.{AuthType, Endpoint}
-import zio.http.{Handler, RoutePattern, Status, handler, string}
+import zio.ZLayer
+import zio.json.{DeriveJsonCodec, JsonCodec, SnakeCase, jsonMemberNames}
 import zio.schema.{DeriveSchema, Schema}
 
+class UserApi(
+  userService: UserService
+) {
+  def get(id: String): IO[ServiceError, UserApi.GetUserResponse] = {
+    for {
+      user <- userService.get(id).mapError { case _: UserService.UserNotFound => new ServiceError.NotFound("User not found")}
+    } yield {
+      UserApi.GetUserResponse(id = user.id, name = user.name)
+    }
+  }
+}
+
 object UserApi {
+  @jsonMemberNames(SnakeCase)
   case class GetUserResponse(id: String, name: String)
   object GetUserResponse {
-    implicit val schema: Schema[GetUserResponse] = DeriveSchema.gen
+    given JsonCodec[GetUserResponse] = DeriveJsonCodec.gen[GetUserResponse]
   }
 
-  case class NotFoundError(message: String)
-  object NotFoundError {
-    implicit val schema: Schema[NotFoundError] = DeriveSchema.gen
-  }
-
-  val endpoint: Endpoint[String, String, NotFoundError, GetUserResponse, AuthType.None] =
-    Endpoint(RoutePattern.GET / "users" / string("id"))
-      .out[GetUserResponse]
-      .outError[NotFoundError](Status.NotFound)
-
-  val getUserHandler: Handler[UserService, NotFoundError, String, GetUserResponse] =
-    handler((id: String) => {
-      ZIO.serviceWithZIO[UserService](userService =>
-        userService.get(id)
-          .map(userView => ZIO.succeed(GetUserResponse(id = userView.id, name = userView.name)))
-          .getOrElse(ZIO.fail(NotFoundError(s"id($id) not found")))
-      )
-    })
-
-  val routes = endpoint.implementHandler(getUserHandler).toRoutes
+  def get(id: String): ZIO[UserApi, ServiceError, UserApi.GetUserResponse] = ZIO.serviceWithZIO(_.get(id))
+  val live: ZLayer[UserService, Nothing, UserApi] = ZLayer.derive[UserApi]
 }
